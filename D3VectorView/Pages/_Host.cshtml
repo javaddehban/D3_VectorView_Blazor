@@ -1,0 +1,250 @@
+﻿@page "/"
+@namespace D3VectorView.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en" style="width:100%;height:100%;">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>D3VectorView</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="~/css/rootStyle.css" rel="stylesheet" />
+    <link href="css/site.css" rel="stylesheet" />
+    @*<link href="D3VectorView.styles.css" rel="stylesheet" />*@
+    <script src="~/js/d3_v6.js"></script>
+    @*<script src="https://d3js.or/g/d3.v6.min.js"></script>*@
+
+</head>
+<body style="width:100%;height:100%;">
+    <component type="typeof(App)" render-mode="ServerPrerendered" />
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.server.js"></script>
+
+    <script>
+        var chartDiv = document.getElementById("parent");
+
+        var svg = d3.select(chartDiv).append("svg");
+        var root;
+        let drag;
+        var gDotLines;
+        let radiusMain;
+        let minSize;
+
+        window.addEventListener("resize", createVectorView)
+        window.addEventListener("resize", reCreateLines);
+
+        function reCreateLines() {
+            DotNet.invokeMethodAsync('SampleApp', 'reCreateLines')
+        }
+        function createVectorView() {
+
+            var width = document.getElementById("parent").clientWidth,
+                height = document.getElementById("parent").clientHeight,
+                radius = Math.min(width, height) / 2 - 30;
+
+            minSize = [width, height];
+            minSize.sort(function (a, b) { return a - b });
+
+            radiusMain = radius;
+            var r = d3.scaleLinear()
+                .domain([0, .5])
+                .range([0, radius]);
+
+            var rOut = d3.scaleLinear()
+                .domain([0, .5])
+                .range([0, radius * 10]);
+
+            d3.select("#svgMainID").remove();
+            svg = d3.select("#vector")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("id", "svgMainID")
+                .append("g")
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
+                .attr("id", "vector_d3");
+
+            // dot dot - circle
+            var gDotCircle = svg.append("g")
+                .attr("class", "r axis")
+                .selectAll("g")
+                .data(r.ticks(5).slice(1))
+                .enter()
+                .append("g")
+                .append("circle")
+                .attr("r", r)
+                .attr("id", function (d) {
+                    return "circleMain" + d * 10;
+                });
+
+            var gDotCircleOut = svg.append("g")
+                .attr("class", "r axis")
+                .selectAll("g")
+                .data(rOut.ticks(20).slice(3))
+                .enter()
+                .append("g")
+                .append("circle")
+                .attr("r", rOut)
+                .attr("id", function (d) {
+                    return "circleMain" + d * 10;
+                });
+
+            // dot dot - line
+            var gDotLine = svg.append("g")
+                .attr("class", "a axis")
+                .selectAll("g")
+                .data(d3.range(0, 360, 30))
+                .enter()
+                .append("g")
+                .attr("transform", function (d) { return "rotate(" + -d + ")"; });
+
+            gDotLine.append("line")
+                .attr("x2", radius * 10)
+                .attr("id", function (d) { return "lineMain" + d; });
+
+            gDotLine.append("text")
+                .classed("noselect", true)
+                .attr("x", radius + 6)
+                .attr("dy", ".35em")
+                .style("text-anchor", function (d) { return d < 270 && d > 90 ? "end" : null; })
+                .attr("transform", function (d) { return d < 270 && d > 90 ? "rotate(180 " + (radius + 6) + ",0)" : null; })
+                .text(function (d) {
+                    if (d > 181) {
+                        d = d - 360;
+                    }
+                    return d + "°";
+                })
+                .attr("id", function (d) { return "TextMain" + d; });
+
+            gDotLines = svg.append("g").attr("id", "Line_parent");
+
+            // d3 listener
+            drag = d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragging)
+                .on('end', dragended);
+
+            function dragstarted() {
+                d3.select(this).raise().classed('active', true);
+            }
+
+            function dragging(d) {
+
+                if (Math.pow(d.x, 2) + Math.pow(d.y, 2) >= Math.pow(radius, 2)) {
+
+                    if (Math.hypot(d.y - 0, d.x - 0) > radiusMain) {
+                        let angle = Math.atan2(d.y - 0, d.x - 0);
+                        let xOut = radiusMain * Math.cos(angle) + 0;
+                        let yOut = radiusMain * Math.sin(angle) + 0;
+
+                        var thenum = this.id.match(/\d+/)[0];
+
+                        d3.select(this)
+                            .attr('cx', xOut)
+                            .attr('cy', yOut);
+
+                        d3.select('#line-' + thenum)
+                            .attr('x2', xOut)
+                            .attr('y2', yOut);
+
+                        d3.select('#title-' + thenum)
+                            .attr('x', xOut)
+                            .attr('y', yOut);
+                        return;
+                    }
+                }
+
+                var thenum = this.id.match(/\d+/)[0];
+
+                d3.select(this)
+                    .attr('cx', d.x)
+                    .attr('cy', d.y);
+
+                d3.select('#line-' + thenum)
+                    .attr('x2', d.x)
+                    .attr('y2', d.y);
+
+                d3.select('#title-' + thenum)
+                    .attr('x', d.x)
+                    .attr('y', d.y);
+
+            }
+            function dragended() {
+                d3.select(this).classed('active', false);
+            }
+        }
+
+        function CreateLineVectorView(index, x1, y1, x2, y2, title, color) {
+            var ra = radiusMain;
+           
+            var marker = gDotLines.append("marker")
+                .attr("id", "arrow-" + index)
+                .attr("markerUnits", "strokeWidth")
+                .attr("markerWidth", "10")
+                .attr("markerHeight", "10")
+                .attr("viewBox", "0 0 12 12")
+                .attr("refX", "10")
+                .attr("refY", "6")
+                .style("fill", color)
+                .attr("orient", "auto");
+
+            marker.append("path")
+                .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2");
+
+            List = gDotLines.append('circle')
+                .classed("myTest", true)
+                .attr('id', 'circle-' + index)
+                .attr('r', 10.0)
+                .attr('cx', x2 * ra)
+                .attr('cy', -y2 * ra)
+                .style('cursor', 'pointer')
+                .style("fill", "transparent")
+                .style("stroke", "transparent")
+                .style('z-index', "1")
+                .call(drag);
+
+
+            textList = gDotLines.append("text")
+                .classed("noselect", true)
+                .attr("id", "title-" + index)
+                .attr("x", x2 * ra)
+                .attr("y", -y2 * ra)
+                .style('font-size', "10px")
+                .style("transform", "translate(10px, -10px)")
+                .text(title)
+                .style('z-index', "-1");
+
+            radiusLineList = gDotLines.append("line")
+                .attr('id', "line-" + index)
+                .attr("x1", x1 * ra)
+                .attr("y1", -y1 * ra)
+                .attr("x2", x2 * ra)
+                .attr("y2", -y2 * ra)
+                .attr("stroke-width", (minSize[0] / 300).toString())
+                .attr("stroke", "black")
+                .attr('fill', 'none')
+                .style("stroke", color)
+                .attr('marker-end', "url(#arrow-" + index + ")")
+                .style('z-index', "-1");
+        }
+
+
+    </script>
+</body>
+</html>

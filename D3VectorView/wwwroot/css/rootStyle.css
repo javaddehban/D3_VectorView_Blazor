@@ -1,0 +1,46 @@
+﻿.frame {
+    fill: none;
+    stroke: #000;
+}
+
+.axis text {
+    font: 12px sans-serif;
+}
+
+.axis line,
+.axis circle {
+    fill: none;
+    stroke: #CCCCCC;
+    stroke-width: 0.5px;
+    stroke-dasharray: 8,2;
+}
+
+.axis :last-of-type circle {
+    stroke: #111;
+    stroke-dasharray: none;
+    stroke-width: 1px;
+}
+
+.line {
+    fill: none;
+    stroke: red;
+    stroke-width: 1.5px;
+}
+
+.myTest {
+    stroke-width: 0px;
+}
+
+    .myTest:hover {
+        stroke-width: 2px;
+    }
+
+.noselect {
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Old versions of Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */
+}
